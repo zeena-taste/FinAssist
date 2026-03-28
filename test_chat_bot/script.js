@@ -1,153 +1,223 @@
-// Get DOM elements
-const messagesContainer = document.getElementById('chat-messages');
-const userInput = document.getElementById('user-input');
-const sendBtn = document.getElementById('send-btn');
-const micBtn = document.getElementById('mic-btn');
+// ==============================
+// 📦 DOM Elements
+// ==============================
+const el = {
+  messages: document.getElementById('chat-messages'),
+  input: document.getElementById('user-input'),
+  send: document.getElementById('send-btn'),
+  mic: document.getElementById('mic-btn')
+};
 
-// Initialize speech recognition (if supported)
-let recognition;
-if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.lang = 'en-US';
+// ==============================
+// 🧠 App State
+// ==============================
+let recognition = null;
+let isListening = false;
 
-  recognition.onresult = (event) => {
-    const transcript = event.results.transcript;
-    userInput.value = transcript;
-    micBtn.classList.remove('listening');
-    sendMessage(); // Auto-send after speech
-  };
-
-  recognition.onerror = (event) => {
-    console.error('Speech recognition error:', event.error);
-    micBtn.classList.remove('listening');
-  };
-
-  recognition.onend = () => {
-    micBtn.classList.remove('listening');
-  };
-} else {
-  micBtn.disabled = true;
-  micBtn.title = "Speech recognition not supported in this browser";
-  micBtn.style.opacity = 0.5;
-}
-
-// Mock initial messages
-const initialMessages = [
-  { sender: 'ai', text: 'Good morning, Elias. Your savings trend is up 12% this month. You’re on track to hit your year-end goal early. What can I help you with today?', time: '09:12 AM' },
-  { sender: 'user', text: 'Can you show me a breakdown of my discretionary spending last week?', time: '09:14 AM' },
-  { sender: 'ai', text: 'Certainly. Last week your discretionary spending totaled $412. Here is the split:', time: '09:15 AM', breakdown: true },
-];
-
-// Render initial messages
-initialMessages.forEach(msg => addMessage(msg));
-
-// Attach event listeners
-sendBtn.addEventListener('click', sendMessage);
-userInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') sendMessage();
-});
-
-micBtn.addEventListener('click', () => {
-  if (!recognition) {
-    alert('Speech recognition not supported in this browser.');
+// ==============================
+// 🎤 Speech Recognition
+// ==============================
+(function initSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    el.mic.disabled = true;
+    el.mic.title = "Speech recognition not supported";
     return;
   }
 
-  micBtn.classList.add('listening');
-  recognition.start();
-});
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.continuous = false;
 
-// Send message function
-function sendMessage() {
-  const text = userInput.value.trim();
-  if (!text) return;
-
-  // Add user message
-  addMessage({ sender: 'user', text, time: getCurrentTime() });
-  userInput.value = '';
-
-  // Define backend URL
-  const backendUrl = 'https://finaassist-ai-606038878824.us-central1.run.app/agent/query';
-
-  // Use a fixed user_id for demo
-  const payload = {
-    user_id: "usr_12345",
-    message: text
+  recognition.onstart = () => {
+    isListening = true;
+    el.mic.classList.add('listening');
   };
 
-  fetch(backendUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  .then(res => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    return res.json();
-  })
-  .then(data => {
-    // Extract AI message
-    const aiMessage = data.data?.message || "I'm here to help with your finances.";
-    const hasBreakdown = data.data?.result?.breakdown || false;
+  recognition.onend = () => {
+    isListening = false;
+    el.mic.classList.remove('listening');
+  };
 
-    // Add AI message
+  recognition.onerror = (e) => {
+    console.error('Speech error:', e.error);
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = e.results?.[0]?.[0]?.transcript || '';
+    if (!transcript) return;
+
+    el.input.value = transcript;
+    queueMicrotask(sendMessage); // smoother than setTimeout
+  };
+})();
+
+// ==============================
+// 🎯 Event Listeners
+// ==============================
+el.send.onclick = sendMessage;
+
+el.input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+el.mic.onclick = () => {
+  if (!recognition) return;
+
+  if (isListening) {
+    recognition.stop();
+  } else {
+    try {
+      recognition.start();
+    } catch {
+      // ignore duplicate start errors
+    }
+  }
+};
+
+// ==============================
+// 💬 Messaging Core
+// ==============================
+async function sendMessage() {
+  const text = el.input.value.trim();
+  if (!text) return;
+
+  el.input.value = '';
+
+  addMessage({ sender: 'user', text });
+
+  const loadingEl = addMessage({
+    sender: 'ai',
+    text: 'Thinking...',
+    loading: true
+  });
+
+  try {
+    const data = await fetchWithTimeout(
+      'https://finaassist-ai-606038878824.us-central1.run.app/agent/query',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: 'usr_12345', message: text })
+      },
+      10000
+    );
+
+    removeMessage(loadingEl);
+
+    const msg = data?.data?.message ?? 'Unexpected response.';
+    const breakdown = data?.data?.result?.breakdown ?? null;
+
     addMessage({
       sender: 'ai',
-      text: aiMessage,
-      time: getCurrentTime(),
-      breakdown: hasBreakdown
+      text: msg,
+      breakdown
     });
-  })
-  .catch(err => {
-    console.error('Error communicating with backend:', err);
+
+  } catch (err) {
+    console.error(err);
+    removeMessage(loadingEl);
+
     addMessage({
       sender: 'ai',
-      text: 'Sorry, I couldn’t reach the server. Try again later or check your connection.',
-      time: getCurrentTime()
+      text: 'Connection issue. Please try again.'
     });
+  }
+}
+
+// ==============================
+// 🌐 Fetch with Timeout
+// ==============================
+async function fetchWithTimeout(url, options, timeout = 8000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  const res = await fetch(url, {
+    ...options,
+    signal: controller.signal
+  });
+
+  clearTimeout(id);
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ==============================
+// 🧱 UI Helpers
+// ==============================
+function addMessage({ sender, text, breakdown }) {
+  const msg = document.createElement('div');
+  msg.className = `message ${sender}`;
+
+  const body = document.createElement('div');
+  body.textContent = text;
+  msg.appendChild(body);
+
+  // 📊 Breakdown rendering
+  if (breakdown && typeof breakdown === 'object') {
+    const box = document.createElement('div');
+    box.className = 'breakdown';
+
+    for (const [key, val] of Object.entries(breakdown)) {
+      const item = document.createElement('div');
+      item.className = 'category';
+
+      item.innerHTML = `
+        <div class="category-title">${key.toUpperCase()}</div>
+        <div class="category-amount">$${val}</div>
+      `;
+
+      box.appendChild(item);
+    }
+
+    msg.appendChild(box);
+  }
+
+  const time = document.createElement('div');
+  time.className = 'message-time';
+  time.textContent = getTime();
+  msg.appendChild(time);
+
+  el.messages.appendChild(msg);
+  el.messages.scrollTop = el.messages.scrollHeight;
+
+  return msg;
+}
+
+function removeMessage(node) {
+  node?.remove();
+}
+
+// ==============================
+// 🕒 Time
+// ==============================
+function getTime() {
+  return new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
   });
 }
 
-// Add message to chat
-function addMessage(msg) {
-  const msgDiv = document.createElement('div');
-  msgDiv.className = `message ${msg.sender}`;
-
-  const textNode = document.createElement('div');
-  textNode.textContent = msg.text;
-  msgDiv.appendChild(textNode);
-
-  // If breakdown is true, add the spending categories
-  if (msg.breakdown) {
-    const breakdownDiv = document.createElement('div');
-    breakdownDiv.className = 'breakdown';
-
-    const dining = document.createElement('div');
-    dining.className = 'category';
-    dining.innerHTML = `<div class="category-title">DINING</div><div class="category-amount">$184</div>`;
-    breakdownDiv.appendChild(dining);
-
-    const entertainment = document.createElement('div');
-    entertainment.className = 'category';
-    entertainment.innerHTML = `<div class="category-title">ENTERTAINMENT</div><div class="category-amount">$128</div>`;
-    breakdownDiv.appendChild(entertainment);
-
-    msgDiv.appendChild(breakdownDiv);
+// ==============================
+// 🧪 Seed Data (Optional)
+// ==============================
+[
+  {
+    sender: 'ai',
+    text: 'Good morning. Your savings are up 12% this month.'
+  },
+  {
+    sender: 'user',
+    text: 'Show my spending breakdown'
+  },
+  {
+    sender: 'ai',
+    text: 'Here is your breakdown:',
+    breakdown: { dining: 184, entertainment: 128 }
   }
-
-  const timeDiv = document.createElement('div');
-  timeDiv.className = 'message-time';
-  timeDiv.textContent = msg.time;
-  msgDiv.appendChild(timeDiv);
-
-  messagesContainer.appendChild(msgDiv);
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-// Get current time
-function getCurrentTime() {
-  const now = new Date();
-  return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+].forEach(addMessage);
