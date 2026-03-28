@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinAassist - Premium Backend Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --bg: #121212;
+            --surface: rgba(255, 255, 255, 0.05);
+            --text-main: #e0e0e0;
+            --text-muted: #9e9e9e;
+            --accent: #cf6679;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --gradient: linear-gradient(135deg, #6200ee 0%, #bb86fc 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #121212 100%);
+        }
+
+        /* Glassmorphism Containers */
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            margin-bottom: 24px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Layout Grid */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 24px;
+        }
+
+        header {
+            grid-column: span 2;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Inputs & Buttons */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="text"], input[type="url"], textarea {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 0.3s ease;
+            font-size: 1rem;
+        }
+
+        input:focus, textarea:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            background: var(--gradient);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s ease, transform 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: scale(0.98);
+        }
+
+        button.outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        /* Status Badges */
+        .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-left: 10px;
+            text-transform: uppercase;
+        }
+
+        .status-online { background: #4caf5022; color: #4caf50; }
+        .status-offline { background: #f4433622; color: #f44336; }
+
+        /* Chat Window */
+        .chat-container {
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+
+        .msg {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .msg.user {
+            align-self: flex-end;
+            background: var(--primary);
+            color: black;
+            border-bottom-right-radius: 4px;
+        }
+
+        .msg.bot {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .msg.system {
+            align-self: center;
+            background: rgba(3, 218, 198, 0.1);
+            color: var(--secondary);
+            font-size: 0.8rem;
+            border-radius: 8px;
+            padding: 6px 12px;
+        }
+
+        /* Action & Metadata List */
+        .metadata {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--glass-border);
+            padding-top: 20px;
+        }
+
+        .metadata b { color: var(--secondary); }
+
+        /* Vision Section */
+        .vision-drop {
+            border: 2px dashed var(--glass-border);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .vision-drop:hover {
+            border-color: var(--primary);
+        }
+
+        .vision-drop p { margin-top: 10px; color: var(--text-muted); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>FinAassist Lab</h1>
+        <p>Premium Backend Validation Tool & API Console</p>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar: Configuration & Controls -->
+        <div class="sidebar">
+            <div class="glass-card">
+                <h3>Global Configuration</h3>
+                <div class="input-group" style="margin-top: 16px;">
+                    <label>Base URL</label>
+                    <input type="url" id="baseUrl" value="https://finaassist-ai-606038878824.us-central1.run.app">
+                </div>
+                <div class="input-group">
+                    <label>User ID</label>
+                    <input type="text" id="userId" value="usr_12345">
+                </div>
+                <button id="seedBtn" class="outline">Initialize Demo User (Seed)</button>
+                <div id="seedStatus" style="margin-top: 12px; font-size: 0.8rem; text-align: center;"></div>
+            </div>
+
+            <div class="glass-card">
+                <h3>Multimodal Vision OCR</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 12px 0;">Upload a receipt to generate a financial CSV extract.</p>
+                <div class="vision-drop" id="visionDrop">
+                    <span style="font-size: 2.5rem;">📸</span>
+                    <p>Drop receipt image here or click to upload</p>
+                    <input type="file" id="visionFile" accept="image/*" style="display: none;">
+                </div>
+                <div id="visionStatus" style="margin-top: 12px; font-size: 0.8rem; text-align: center;"></div>
+            </div>
+        </div>
+
+        <!-- Main Workspace: Chat & Logs -->
+        <div class="workspace">
+            <div class="glass-card chat-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>AI Reasoning Lab <span id="wsStatus" class="status status-offline">Socket: Closed</span></h3>
+                    <button id="connectWS" style="width: auto; padding: 6px 16px; font-size: 0.7rem;">Connect Live Socket</button>
+                </div>
+                
+                <div class="chat-messages" id="chatWindow">
+                    <div class="msg bot">Welcome to the FinAassist Lab! Ready to test our intelligence.</div>
+                </div>
+
+                <div class="input-group" style="display: flex; gap: 12px; margin-bottom: 0;">
+                    <input type="text" id="chatInput" placeholder="Type a financial query or command...">
+                    <button id="sendBtn" style="width: auto;">Send</button>
+                </div>
+
+                <div class="metadata" id="metaDisplay">
+                    <div><b>Financial Score:</b> <span id="scoreDisplay">-</span></div>
+                    <div><b>Planned Action:</b> <span id="actionDisplay">None</span></div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <h3 style="margin-bottom: 12px;">Tool Execution Log</h3>
+                <div id="logWindow" style="font-family: monospace; font-size: 0.75rem; color: var(--secondary); background: rgba(0,0,0,0.4); padding: 16px; border-radius: 12px; height: 120px; overflow-y: auto;">
+                    [SYSTEM] Terminal ready for tool monitoring...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            ws: null,
+            baseUrl: () => document.getElementById('baseUrl').value,
+            wsUrl: () => document.getElementById('baseUrl').value.replace('https://', 'wss://').replace('http://', 'ws://'),
+            userId: () => document.getElementById('userId').value
+        };
+
+        // --- DOM Elements ---
+        const chatWindow = document.getElementById('chatWindow');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const seedBtn = document.getElementById('seedBtn');
+        const logWindow = document.getElementById('logWindow');
+        const connectWSBtn = document.getElementById('connectWS');
+        const wsStatusBadge = document.getElementById('wsStatus');
+
+        // --- Helper Functions ---
+        function addMsg(text, sender) {
+            const div = document.createElement('div');
+            div.className = `msg ${sender}`;
+            div.innerText = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function addLog(text) {
+            const div = document.createElement('div');
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${text}`;
+            logWindow.appendChild(div);
+            logWindow.scrollTop = logWindow.scrollHeight;
+        }
+
+        async function apiPost(endpoint, body) {
+            const url = `${state.baseUrl()}/${endpoint}`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return res.json();
+        }
+
+        // --- Interaction Handlers ---
+
+        seedBtn.onclick = async () => {
+            document.getElementById('seedStatus').innerText = "Initializing Kwame...";
+            try {
+                const res = await apiPost('agent/seed-demo', {});
+                document.getElementById('seedStatus').innerText = res.message || "Seeding complete!";
+                addLog(`DEMO SEED: ${res.status} for ${state.userId()}`);
+            } catch (e) {
+                document.getElementById('seedStatus').innerText = "Seeding failed. Check URL.";
+            }
+        };
+
+        sendBtn.onclick = async () => {
+            const msg = chatInput.value;
+            if (!msg) return;
+
+            addMsg(msg, 'user');
+            chatInput.value = '';
+
+            // If WS is open, send via socket
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+                state.ws.send(msg);
+                addLog(`[WS] Message Sent: ${msg}`);
+                return;
+            }
+
+            // Fallback to REST Agent
+            addLog(`[REST] Pinging Brain...`);
+            try {
+                const res = await apiPost('agent/query', { user_id: state.userId(), message: msg });
+                if (res.status === 'success') {
+                    addMsg(res.data.message, 'bot');
+                    document.getElementById('scoreDisplay').innerText = res.data.financial_score;
+                    document.getElementById('actionDisplay').innerText = res.data.action_taken || 'None';
+                    if (res.data.action_taken) addLog(`TOOL TRIGGERED: ${res.data.action_taken}`);
+                }
+            } catch (e) {
+                addMsg("Service currently unavailable. Ensure the backend is running.", 'bot');
+            }
+        };
+
+        // --- WebSocket Logic ---
+        connectWSBtn.onclick = () => {
+            if (state.ws) {
+                state.ws.close();
+                return;
+            }
+
+            const url = `${state.wsUrl()}/ws/chat/${state.userId()}`;
+            addLog(`Attempting WS connection to ${url}`);
+            
+            state.ws = new WebSocket(url);
+
+            state.ws.onopen = () => {
+                wsStatusBadge.className = "status status-online";
+                wsStatusBadge.innerText = "Socket: Connected";
+                connectWSBtn.innerText = "Disconnect Socket";
+                addLog(`[WS] Connection established.`);
+            };
+
+            state.ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'chat') {
+                    addMsg(data.message, 'bot');
+                } else if (data.type === 'action_started') {
+                    addLog(`[WS] ACTION START: ${data.action}`);
+                } else if (data.type === 'action_completed') {
+                    addLog(`[WS] ACTION DONE: ${data.action}`);
+                }
+            };
+
+            state.ws.onclose = () => {
+                state.ws = null;
+                wsStatusBadge.className = "status status-offline";
+                wsStatusBadge.innerText = "Socket: Closed";
+                connectWSBtn.innerText = "Connect Live Socket";
+                addLog(`[WS] Connection terminated.`);
+            };
+        };
+
+        // --- Vision OCR Logic ---
+        const visionDrop = document.getElementById('visionDrop');
+        const visionFile = document.getElementById('visionFile');
+
+        visionDrop.onclick = () => visionFile.click();
+
+        visionFile.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('visionStatus').innerText = "Uploading & Extracting...";
+            addLog(`VISION: Uploading ${file.name}...`);
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${state.baseUrl()}/vision/upload-receipt`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "extracted_transactions.csv";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    document.getElementById('visionStatus').innerText = "✅ Success! CSV Downloaded.";
+                    addLog("VISION: CSV extract complete.");
+                } else {
+                    document.getElementById('visionStatus').innerText = "❌ OCR Failed.";
+                }
+            } catch (e) {
+                document.getElementById('visionStatus').innerText = "❌ Connection Error.";
+            }
+        };
+
+        // UI Shortcuts
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendBtn.click();
+        });
+    </script>
+</body>
+</html>
